@@ -1,0 +1,10 @@
+name: lsml
+
+docker_env:
+    lsml-mlflow
+
+entry_points:
+    main:
+        parameters:
+            k: int
+        command: "python train.py {k}"
