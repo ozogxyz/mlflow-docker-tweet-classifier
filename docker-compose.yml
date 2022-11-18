@@ -41,6 +41,8 @@ services:
     networks:
       - frontend
       - backend
+    volumes:
+      - .:/home/jovyan/app/
 
   nginx:
     restart: always

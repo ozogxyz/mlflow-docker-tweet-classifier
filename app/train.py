@@ -51,7 +51,7 @@ if __name__ == '__main__':
             for m in client.search_registered_models()
         ]
         for e in client.list_experiments():
-            if e.name == 'Twitter-Test':
+            if e.name == 'Twitter':
                 for run_info in client.search_runs(e.experiment_id):
                     run = mlflow.get_run(run_info.info.run_id)
                     runs[run_info.info.run_id] = {'run_id': run_info.info.run_id, 'tags': run.data.tags,
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                 mlflow.sklearn.log_model(bow_model, "model")
 
     experiment = client.get_experiment_by_name(EXP_NAME)
-    nlp_model_name = "Twitter10"
+    nlp_model_name = "Twitter-Bow"
     client.create_registered_model(nlp_model_name)
 
     # staging model
