@@ -62,7 +62,8 @@ def results():
 
 if __name__ == '__main__':
 
-    app.run(debug=True, port=5001)
+    app.run(debug=True, host="0.0.0.0", port=5001)
+    print("I AM ALIVE")
     warnings.filterwarnings("ignore")
     np.random.seed(42)
     MLFLOW_SERVER_URI = 'http://web:5000'
