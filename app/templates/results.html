@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Tweet Toxic or Not</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+
+<h3>Your Tweet was:</h3>
+<div>{{ content }}</div>
+
+<h3>Prediction:</h3>
+<div>This tweet is <strong>{{ prediction }}</strong>
+	 (probability: {{ probability }}%).</div>
+
+  </body>
+</html>
