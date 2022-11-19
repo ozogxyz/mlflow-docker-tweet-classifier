@@ -62,8 +62,6 @@ def results():
 
 if __name__ == '__main__':
 
-    app.run(debug=True, host="0.0.0.0", port=5001)
-    print("I AM ALIVE")
     warnings.filterwarnings("ignore")
     np.random.seed(42)
     MLFLOW_SERVER_URI = 'http://web:5000'
@@ -116,7 +114,7 @@ if __name__ == '__main__':
 
                 # mlflow stuff
                 mlflow.log_param("params", clf_name)
-                mlflow.log_metric("metric", acc)
+                mlflow.log_metric("Accuracy", acc)
                 mlflow.sklearn.log_model(final_model, "model")
 
     experiment = client.get_experiment_by_name(EXP_NAME)
@@ -243,3 +241,5 @@ if __name__ == '__main__':
     for run_info in client.search_runs(experiment.experiment_id):
         for tag in ['staging', 'compared_with']:
             client.delete_tag(run_info.info.run_id, tag)
+
+    app.run(debug=True, host="0.0.0.0", port=5001)

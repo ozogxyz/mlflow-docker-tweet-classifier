@@ -1,28 +1,14 @@
 version: '3.3'
 
 services:
-  app:
-    restart: always
-    build: ./app
-    image: mlflow_app
-    container_name: mlflow_app
-    expose:
-      - "8888"
-      - "5001"
-    ports:
-      - "8888:8888"
-      - "5001:5001"
-    networks:
-      - frontend
-      - backend
-    volumes:
-      - ./app/:/home/joyvan/app/
   db:
     restart: always
     image: mysql/mysql-server:5.7.28
     container_name: mlflow_db
     expose:
       - "3306"
+    ports:
+      - "3306:3306"
     networks:
       - backend
     environment:
@@ -54,13 +40,30 @@ services:
     container_name: mlflow_nginx
     ports:
       - "80:80"
-      - "81:81"
     networks:
       - frontend
     depends_on:
       - web
     volumes:
       - ./nginx:/home/jovyan/nginx
+  app:
+    restart: always
+    build: ./app
+    image: mlflow_app
+    container_name: mlflow_app
+    expose:
+      - "8888"
+      - "5001"
+    ports:
+      - "8888:8888"
+      - "5001:5001"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - web
+    volumes:
+      - ./app/:/home/joyvan/app/
 networks:
   frontend:
     driver: bridge
