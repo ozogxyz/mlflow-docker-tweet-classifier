@@ -16,7 +16,7 @@ services:
       - frontend
       - backend
     volumes:
-      - .:/home/jovyan/app/
+      - ./app/:/home/joyvan/app/
   db:
     restart: always
     image: mysql/mysql-server:5.7.28
@@ -52,6 +52,7 @@ services:
     container_name: mlflow_nginx
     ports:
       - "80:80"
+      - "81:81"
     networks:
       - frontend
     depends_on:
