@@ -9,15 +9,12 @@ from wtforms import Form, TextAreaField, validators
 from sklearn.model_selection import GridSearchCV
 from _preprocess import *
 from _loaders import *
-from _db import *
 
 app = Flask(__name__)
 
 # load the model
 final_model = pickle.load(open('best_pipe.pkl', 'rb'))
 transformer = pickle.load(open('tfidf.pkl', 'rb'))
-# load the db
-db = 'toxic.sqlite'
 
 
 def classify(tweet):
@@ -26,15 +23,6 @@ def classify(tweet):
     y = final_model.predict(X)[0]
     proba = np.max(final_model.predict_proba(X))
     return label[y], proba
-
-
-def sqlite_entry(db, tweet, y):
-    conn = sqlite3.connect(db)
-    c = conn.cursor()
-    query = "INSERT INTO toxic_db (tweet, toxic) VALUES (?, ?)"
-    c.execute(query, (tweet, y))
-    conn.commit()
-    conn.close()
 
 
 class ReviewForm(Form):
@@ -63,20 +51,16 @@ def results():
 if __name__ == '__main__':
 
     warnings.filterwarnings("ignore")
-    np.random.seed(42)
+    np.random.seed(np.random.randint(1, 50000))
     MLFLOW_SERVER_URI = 'http://web:5000'
 
     client = mlflow.tracking.MlflowClient(MLFLOW_SERVER_URI)
     mlflow.set_tracking_uri(MLFLOW_SERVER_URI)
 
-    EXP_NAME = "Twitter"
+    EXP_NAME = "Experiment-" + str(np.random.randint(1, 1000))
     EXP_ID = mlflow.create_experiment(EXP_NAME)
 
     mlflow.set_experiment(EXP_NAME)
-
-    with mlflow.start_run() as run:
-        assert run.info.experiment_id == EXP_ID
-        print("Experiment created successfully".upper())
 
     all_classifiers = {'lr': lr_clf,
                        'sgd': sgd_clf,
@@ -89,6 +73,8 @@ if __name__ == '__main__':
     accuracy_dict = {}
     for clf_name, clf in all_classifiers.items():
         with mlflow.start_run():
+            # assert run.info.experiment_id == EXP_ID
+            print(f"{clf_name} created successfully".upper())
             tfidf_clf_pipe = Pipeline([('vect', tfidf), ('clf', clf)])
             tfidf_clf_pipe_gs = GridSearchCV(tfidf_clf_pipe,
                                              param_grid,
@@ -99,26 +85,21 @@ if __name__ == '__main__':
             tfidf_clf_pipe_gs.fit(texts_train, y_train)
             best_model = tfidf_clf_pipe_gs.best_estimator_
             best_models[clf] = best_model
+            y_pred = best_model.predict(texts_test)
+            acc = accuracy_score(y_test, y_pred)
+            accuracy_dict[clf_name] = acc
+            print('classifier algorithm = %s' % clf_name)
+            print("Number of mislabeled points out of a total %d points : %d" % (
+                len(texts_test), (y_test != y_pred).sum()))
+            print('Test Accuracy: %.3f' % acc)
 
-            for name, X, y, model in [
-                ('train', texts_train, y_train, best_model),
-                ('test ', texts_test, y_test, best_model)
-            ]:
-                y_pred = best_model.predict(texts_test)
-                acc = accuracy_score(y_test, y_pred)
-                accuracy_dict[clf_name] = acc
-                print('classifier algorithm = %s' % clf_name)
-                print("Number of mislabeled points out of a total %d points : %d" % (
-                    len(texts_test), np.sum(y_test != y_pred).sum()))
-                print('Test Accuracy: %.3f' % acc)
-
-                # mlflow stuff
-                mlflow.log_param("params", clf_name)
-                mlflow.log_metric("Accuracy", acc)
-                mlflow.sklearn.log_model(final_model, "model")
+            # mlflow stuff
+            mlflow.log_param("Classifier", clf_name)
+            mlflow.log_metric("Accuracy", acc)
+            # mlflow.sklearn.log_model(final_model, "model")
 
     experiment = client.get_experiment_by_name(EXP_NAME)
-    model_name = "Twitter-Classify"
+    model_name = "Twitter-Classify" + str(np.random.randint(1, 1000))
     client.create_registered_model(model_name)
 
     # staging model
@@ -146,24 +127,10 @@ if __name__ == '__main__':
         stage="Production"
     )
 
-    client = mlflow.tracking.MlflowClient(MLFLOW_SERVER_URI)
-    experiment = client.get_experiment_by_name(EXP_NAME)
-    client.search_runs(experiment.experiment_id)
-
-    current_staging = \
-        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Staging'][
-            -1]
-
-    client.set_tag(current_staging.run_id, "staging", "failed")
-
-    current_prod = \
-        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Production'][
-            -1]
-    prod_metrics = client.get_run(current_prod.run_id).data.metrics
-    current_staging = \
-        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Staging'][
-            -1]
+    current_staging = [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Staging'][-1]
     current_staging_metrics = client.get_run(current_staging.run_id).data.metrics
+    current_prod = [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Production'][-1]
+    prod_metrics = client.get_run(current_prod.run_id).data.metrics
 
     # Task 1
     for run_info in client.search_runs(experiment.experiment_id):
@@ -175,11 +142,13 @@ if __name__ == '__main__':
 
         client.set_tag(run_info.info.run_id, "compared_with", current_prod.version)
 
-        if all(current_metrics[k] > v for k, v in prod_metrics.items()):
+        if all(current_metrics[k] > v for k, v in prod_metrics.items() if k ==
+                                                                          'Accuracy'):
+            print(f'CURR: {current_metrics}')
+            print(f'PROD: {prod_metrics}')
             client.set_tag(run_info.info.run_id, "staging", "rc")
         else:
             client.set_tag(run_info.info.run_id, "staging", "rejected")
-
 
     # find production id and metrics
     def get_production(client_):
@@ -187,18 +156,15 @@ if __name__ == '__main__':
             if dict(mv)['current_stage'] == 'Production':
                 return mv
 
-
     prod_mv = get_production(client)
     print(f'Production ID: {prod_mv.run_id}')
     print(f'Production Version: {prod_mv.version}')
-
 
     # find staging id and metrics
     def get_staging(client_):
         for mv in client_.search_model_versions(f"name='{model_name}'"):
             if dict(mv)['current_stage'] == 'Staging':
                 return mv
-
 
     staging_mv = get_staging(client)
     print(f'Staging ID: {staging_mv.run_id}')
@@ -209,12 +175,13 @@ if __name__ == '__main__':
 
     for run_info in client.search_runs(experiment.experiment_id):
         run = mlflow.get_run(run_info.info.run_id)
-
         # for all models that pass the initial selection (if experiment is a release candidate)
         if 'rc' in run.data.tags['staging']:
             test_metrics = client.get_run(run_info.info.run_id).data.metrics
-
-            if all(test_metrics[k] > v for k, v in prod_metrics.items()):
+            print(f'TEST: {test_metrics}')
+            print(f'PROD: {prod_metrics}')
+            if all(test_metrics[k] > v for k, v in prod_metrics.items() if k ==
+                                                                           'Accuracy'):
                 client.set_tag(run_info.info.run_id, "staging", "rc")
                 prod = client.create_model_version(
                     name=model_name,
@@ -227,7 +194,7 @@ if __name__ == '__main__':
                     stage="Production"
                 )
                 prod_metrics = client.get_run(prod.run_id).data.metrics
-            metrics[run_info.info.run_id] = test_metrics.get('AUC')
+            metrics[run_info.info.run_id] = test_metrics.get('Accuracy')
 
     print(f'Production ID: {get_production(client).run_id}')
     print(f'Production Version: {get_production(client).version}', end="\n\n")
