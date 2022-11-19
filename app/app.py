@@ -1,74 +1,76 @@
-import os
-import sys
-import warnings
-import json
-
 import mlflow.sklearn
+import pickle
 import numpy as np
-import pandas as pd
-from nltk.tokenize import TweetTokenizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
+import warnings
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import accuracy_score
+from flask import Flask, render_template, render_template_string, request
+from wtforms import Form, TextAreaField, validators
+from sklearn.model_selection import GridSearchCV
+from _preprocess import *
+from _loaders import *
+from _db import *
 
-from features import BoW
+app = Flask(__name__)
+
+# load the model
+final_model = pickle.load(open('best_pipe.pkl', 'rb'))
+transformer = pickle.load(open('tfidf.pkl', 'rb'))
+# load the db
+db = 'toxic.sqlite'
+
+
+def classify(tweet):
+    label = {0: 'NON TOXIC', 1: 'TOXIC'}
+    X = transformer.transform([preprocessor(t) for t in [tweet]])
+    y = final_model.predict(X)[0]
+    proba = np.max(final_model.predict_proba(X))
+    return label[y], proba
+
+
+def sqlite_entry(db, tweet, y):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+    query = "INSERT INTO toxic_db (tweet, toxic) VALUES (?, ?)"
+    c.execute(query, (tweet, y))
+    conn.commit()
+    conn.close()
+
+
+class ReviewForm(Form):
+    tweet_classify = TextAreaField('', [validators.DataRequired(), validators.length(min=5)])
+
+
+@app.route('/')
+def index():
+    form = ReviewForm(request.form)
+    return render_template('classify_form.html', form=form)
+
+
+@app.route('/results', methods=['POST'])
+def results():
+    form = ReviewForm(request.form)
+    if request.method == 'POST' and form.validate():
+        review = request.form['tweet_classify']
+        y, proba = classify(review)
+        return render_template('results.html',
+                               content=review,
+                               prediction=y,
+                               probability=round(proba * 100, 2))
+    return render_template('classify_form.html', form=form)
 
 
 if __name__ == '__main__':
+
+    app.run(debug=True, host='http://web', port=5001)
     warnings.filterwarnings("ignore")
     np.random.seed(42)
-
-    try:
-        data = pd.read_csv('../../datasets/comments_small_dataset/comments.tsv', sep='\t')
-    except FileNotFoundError:
-        os.system('wget https://raw.githubusercontent.com/girafe-ai/ml-course/master/datasets/comments_small_dataset'
-                  '/comments.tsv -nc')
-        data = pd.read_csv("comments.tsv", sep='\t')
-
-    texts = data['comment_text'].values
-    target = data['should_ban'].values
-    texts_train, texts_test, y_train, y_test = train_test_split(texts, target, test_size=0.5, random_state=42)
-
-    tokenizer = TweetTokenizer()
-    preprocess = lambda text: ' '.join(tokenizer.tokenize(text.lower()))
-    texts_train = [preprocess(text) for text in texts_train]  # <YOUR CODE>
-    texts_test = [preprocess(text) for text in texts_test]  # <YOUR CODE>
-
-    text = 'How to be a grown-up at work: replace "I don\'t want to do that" with "Ok, great!".'
-    print("before:", text, )
-    print("after:", preprocess(text), )
-
-
-    def generate_submission():  # Report generation
-        client = mlflow.tracking.MlflowClient(MLFLOW_SERVER_URI)
-
-        runs = {}
-        models = [
-            {'name': m.name,
-             'versions': [
-                 {'current_stage': v.current_stage, 'run_id': v.run_id, 'status': v.status}
-                 for v in m.latest_versions if m.name == 'sk-learn-model-ci']}
-            for m in client.search_registered_models()
-        ]
-        for e in client.list_experiments():
-            if e.name == 'Twitter':
-                for run_info in client.search_runs(e.experiment_id):
-                    run = mlflow.get_run(run_info.info.run_id)
-                    runs[run_info.info.run_id] = {'run_id': run_info.info.run_id, 'tags': run.data.tags,
-                                             'params': run.data.params,
-                                             'metrics': run.data.metrics}
-        versions = [{'version': v.version, 'run_id': v.run_id} for v in
-                    client.search_model_versions(f"name='{nlp_model_name}'")]
-        with open('submission.json', 'w') as f:
-            json.dump({'runs': runs, 'models': models, 'versions': versions}, f)
-
-
     MLFLOW_SERVER_URI = 'http://web:5000'
 
     client = mlflow.tracking.MlflowClient(MLFLOW_SERVER_URI)
     mlflow.set_tracking_uri(MLFLOW_SERVER_URI)
 
-    EXP_NAME = "Twitter-Test"
+    EXP_NAME = "Twitter"
     EXP_ID = mlflow.create_experiment(EXP_NAME)
 
     mlflow.set_experiment(EXP_NAME)
@@ -77,58 +79,70 @@ if __name__ == '__main__':
         assert run.info.experiment_id == EXP_ID
         print("Experiment created successfully".upper())
 
+    all_classifiers = {'lr': lr_clf,
+                       'sgd': sgd_clf,
+                       'rf': rf_clf,
+                       'xgb': xgb_clf,
+                       'tree': tree_clf,
+                       }
 
-    for k in range(1000, 10000, 2000):
+    best_models = {}
+    accuracy_dict = {}
+    for clf_name, clf in all_classifiers.items():
         with mlflow.start_run():
-            bow = BoW(k)
-            bow.fit(texts_train)
-            print('example features:', sorted(bow.get_vocabulary())[::100])
-
-            X_train_bow = bow.transform(texts_train)
-            X_test_bow = bow.transform(texts_test)
-
-            bow_model = LogisticRegression().fit(X_train_bow, y_train)
+            tfidf_clf_pipe = Pipeline([('vect', tfidf), ('clf', clf)])
+            tfidf_clf_pipe_gs = GridSearchCV(tfidf_clf_pipe,
+                                             param_grid,
+                                             scoring='accuracy',
+                                             verbose=0,
+                                             cv=3,
+                                             n_jobs=-1)
+            tfidf_clf_pipe_gs.fit(texts_train, y_train)
+            best_model = tfidf_clf_pipe_gs.best_estimator_
+            best_models[clf] = best_model
 
             for name, X, y, model in [
-                ('train', X_train_bow, y_train, bow_model),
-                ('test ', X_test_bow, y_test, bow_model)
+                ('train', texts_train, y_train, best_model),
+                ('test ', texts_test, y_test, best_model)
             ]:
-                proba = model.predict_proba(X)[:, 1]
-                auc = roc_auc_score(y, proba)
-
-                print(f"{name} AUC: {auc}")
+                y_pred = best_model.predict(texts_test)
+                acc = accuracy_score(y_test, y_pred)
+                accuracy_dict[clf_name] = acc
+                print('classifier algorithm = %s' % clf_name)
+                print("Number of mislabeled points out of a total %d points : %d" % (
+                    len(texts_test), np.sum(y_test != y_pred).sum()))
+                print('Test Accuracy: %.3f' % acc)
 
                 # mlflow stuff
-                mlflow.log_param("k", k)
-                mlflow.log_metric("AUC", auc)
-
-                mlflow.sklearn.log_model(bow_model, "model")
+                mlflow.log_param("params", clf_name)
+                mlflow.log_metric("metric", acc)
+                mlflow.sklearn.log_model(final_model, "model")
 
     experiment = client.get_experiment_by_name(EXP_NAME)
-    nlp_model_name = "Twitter-Bow"
-    client.create_registered_model(nlp_model_name)
+    model_name = "Twitter-Classify"
+    client.create_registered_model(model_name)
 
     # staging model
     run_info = client.search_runs(experiment.experiment_id)[0]
     result = client.create_model_version(
-        name=nlp_model_name,
+        name=model_name,
         source=f"{run_info.info.artifact_uri}/model",
         run_id=run_info.info.run_id
     )
     client.transition_model_version_stage(
-        name=nlp_model_name,
+        name=model_name,
         version=result.version,
         stage="Staging"
     )
     # prod model
     run_info = client.search_runs(experiment.experiment_id)[-1]
     result = client.create_model_version(
-        name=nlp_model_name,
+        name=model_name,
         source=f"{run_info.info.artifact_uri}/model",
         run_id=run_info.info.run_id
     )
     client.transition_model_version_stage(
-        name=nlp_model_name,
+        name=model_name,
         version=result.version,
         stage="Production"
     )
@@ -138,18 +152,18 @@ if __name__ == '__main__':
     client.search_runs(experiment.experiment_id)
 
     current_staging = \
-    [v for v in client.search_model_versions(f"name='{nlp_model_name}'") if v.current_stage == 'Staging'][
-        -1]
+        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Staging'][
+            -1]
 
     client.set_tag(current_staging.run_id, "staging", "failed")
 
     current_prod = \
-    [v for v in client.search_model_versions(f"name='{nlp_model_name}'") if v.current_stage == 'Production'][
-        -1]
+        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Production'][
+            -1]
     prod_metrics = client.get_run(current_prod.run_id).data.metrics
     current_staging = \
-    [v for v in client.search_model_versions(f"name='{nlp_model_name}'") if v.current_stage == 'Staging'][
-        -1]
+        [v for v in client.search_model_versions(f"name='{model_name}'") if v.current_stage == 'Staging'][
+            -1]
     current_staging_metrics = client.get_run(current_staging.run_id).data.metrics
 
     # Task 1
@@ -170,7 +184,7 @@ if __name__ == '__main__':
 
     # find production id and metrics
     def get_production(client_):
-        for mv in client_.search_model_versions(f"name='{nlp_model_name}'"):
+        for mv in client_.search_model_versions(f"name='{model_name}'"):
             if dict(mv)['current_stage'] == 'Production':
                 return mv
 
@@ -180,9 +194,9 @@ if __name__ == '__main__':
     print(f'Production Version: {prod_mv.version}')
 
 
-    # find production id and metrics
+    # find staging id and metrics
     def get_staging(client_):
-        for mv in client_.search_model_versions(f"name='{nlp_model_name}'"):
+        for mv in client_.search_model_versions(f"name='{model_name}'"):
             if dict(mv)['current_stage'] == 'Staging':
                 return mv
 
@@ -204,12 +218,12 @@ if __name__ == '__main__':
             if all(test_metrics[k] > v for k, v in prod_metrics.items()):
                 client.set_tag(run_info.info.run_id, "staging", "rc")
                 prod = client.create_model_version(
-                    name=nlp_model_name,
+                    name=model_name,
                     source=f"{run_info.info.artifact_uri}/model",
                     run_id=run_info.info.run_id
                 )
                 client.transition_model_version_stage(
-                    name=nlp_model_name,
+                    name=model_name,
                     version=prod.version,
                     stage="Production"
                 )
@@ -228,6 +242,3 @@ if __name__ == '__main__':
     for run_info in client.search_runs(experiment.experiment_id):
         for tag in ['staging', 'compared_with']:
             client.delete_tag(run_info.info.run_id, tag)
-
-    generate_submission()
-

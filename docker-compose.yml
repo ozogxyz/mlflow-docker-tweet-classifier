@@ -1,6 +1,22 @@
 version: '3.3'
 
 services:
+  app:
+    restart: always
+    build: ./app
+    image: mlflow_app
+    container_name: mlflow_app
+    expose:
+      - "8888"
+      - "5001"
+    ports:
+      - "8888:8888"
+      - "5001:5001"
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - .:/home/jovyan/app/
   db:
     restart: always
     image: mysql/mysql-server:5.7.28
@@ -16,7 +32,6 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
       - dbdata:/var/lib/mysql
-
   web:
     restart: always
     build: ./mlflow
@@ -24,43 +39,27 @@ services:
     container_name: mlflow_server
     expose:
       - "5000"
+    ports:
+      - "5000:5000"
     networks:
       - frontend
       - backend
     command: mlflow server --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE} --default-artifact-root ./mlflow/artifacts --host 0.0.0.0
-
-  app:
-    restart: always
-    build: ./app
-    image: mlflow_app
-    container_name: mlflow_app
-    expose:
-      - "8888"
-    ports:
-      - "8888:8888"
-    networks:
-      - frontend
-      - backend
-    volumes:
-      - .:/home/jovyan/app/
-
   nginx:
     restart: always
     build: ./nginx
     image: mlflow_nginx
     container_name: mlflow_nginx
     ports:
-      - "5000:80"
+      - "80:80"
     networks:
       - frontend
     depends_on:
       - web
-
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
-
 volumes:
-    dbdata:
+  dbdata:
