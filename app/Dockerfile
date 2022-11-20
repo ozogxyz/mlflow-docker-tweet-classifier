@@ -1,6 +1,6 @@
 FROM jupyter/scipy-notebook
 
-# Copy requirements first to validate pip cache
+# Copy requirements first to validate pip cache to prevent rebuild
 COPY requirements.txt /app/requirements.txt
 WORKDIR /app
 
