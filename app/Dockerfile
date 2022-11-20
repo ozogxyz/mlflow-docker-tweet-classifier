@@ -1,16 +1,17 @@
 FROM jupyter/scipy-notebook
 
+# Copy requirements first to validate pip cache
+COPY requirements.txt /app/requirements.txt
 WORKDIR /app
-
-# Copy the files
-COPY . .
 
 # Create the environment:
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
+# Copy the other files
+COPY . /app
+
 # Run jupyter
-RUN python _db.py
 RUN python _preprocess.py
 RUN python _loaders.py
 
