@@ -4,7 +4,7 @@ services:
   db:
     restart: always
     image: mysql/mysql-server:5.7.28
-    container_name: mlflow_db
+    container_name: mlflow-runs-db
     expose:
       - "3306"
     ports:
@@ -17,12 +17,12 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
-      - dbdata:/var/lib/mysql
+      - ./database:/var/lib/mysql
   web:
     restart: always
     build: ./mlflow
     image: mlflow_server
-    container_name: mlflow_server
+    container_name: mlflow-server
     expose:
       - "5000"
     ports:
@@ -37,7 +37,7 @@ services:
     restart: always
     build: ./nginx
     image: mlflow_nginx
-    container_name: mlflow_nginx
+    container_name: nginx-server
     ports:
       - "80:80"
       - "81:81"
@@ -50,8 +50,8 @@ services:
   app:
     restart: always
     build: ./app
-    image: mlflow_app
-    container_name: mlflow_app
+    image: tweet-detoxifier
+    container_name: tweet-detoxifier
     expose:
       - "8888"
       - "5001"
@@ -71,4 +71,4 @@ networks:
   backend:
     driver: bridge
 volumes:
-  dbdata:
+  database:

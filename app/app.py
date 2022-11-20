@@ -18,7 +18,7 @@ transformer = pickle.load(open('tfidf.pkl', 'rb'))
 
 
 def classify(tweet):
-    label = {0: 'NON TOXIC', 1: 'TOXIC'}
+    label = {0: 'Nope, seems fine!', 1: 'Toxic!'}
     X = transformer.transform([preprocessor(t) for t in [tweet]])
     y = final_model.predict(X)[0]
     proba = np.max(final_model.predict_proba(X))
@@ -60,9 +60,9 @@ if __name__ == '__main__':
 
     EXP_NAME = "Experiment-" + str(np.random.randint(1, 1000))
     EXP_ID = mlflow.create_experiment(EXP_NAME)
-
+    print(f'Experiment created: {EXP_NAME} with ID: {EXP_ID}')
     mlflow.set_experiment(EXP_NAME)
-
+    print(f'Training started...')
     all_classifiers = {'lr': lr_clf,
                        'sgd': sgd_clf,
                        'rf': rf_clf,
@@ -75,7 +75,6 @@ if __name__ == '__main__':
     for clf_name, clf in all_classifiers.items():
         with mlflow.start_run():
             # assert run.info.experiment_id == EXP_ID
-            print(f"{clf_name} created successfully".upper())
             tfidf_clf_pipe = Pipeline([('vect', tfidf), ('clf', clf)])
             tfidf_clf_pipe_gs = GridSearchCV(tfidf_clf_pipe,
                                              param_grid,
@@ -210,4 +209,6 @@ if __name__ == '__main__':
         for tag in ['staging', 'compared_with']:
             client.delete_tag(run_info.info.run_id, tag)
 
+    print(f'Training finished...')
+    print(f'Opening the web app...')
     app.run(debug=True, host="0.0.0.0", port=5001)

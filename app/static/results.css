@@ -25,14 +25,36 @@
     padding-left: 40px;
     padding-right: 40px;
     padding-bottom: 10px;
-    padding-top: 10px;
+    font-family: 'Ubuntu', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.result_pred {
+    padding-top: 40px;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 10px;
+    font-family: 'Ubuntu', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.prob {
+    padding-top: 40px;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 10px;
+    font-family: 'Ubuntu', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
 }
 
 .result_tweet:focus{
     border: 2px solid rgba(0, 0, 0, 0.18) !important;
 }
 
-.back_btn {
+a {
   cursor: pointer;
     border-radius: 5em;
     color: #fff;
@@ -46,12 +68,6 @@
     margin-left: 35%;
     font-size: 13px;
     box-shadow: 0 0 20px 1px rgba(0, 0, 0, 0.04);
-}
-
-a {
-    text-shadow: 0px 0px 3px rgba(117, 117, 117, 0.12);
-    color: #E1BEE7;
-    text-decoration: none
 }
 
 @media (max-width: 600px) {

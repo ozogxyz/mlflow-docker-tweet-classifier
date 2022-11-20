@@ -6,12 +6,12 @@
 </head>
 <body>
 <div class="main">
-    <p align="center" class="title">Is this tweet toxic?</p>
+    <p align="center" class="title">Is your tweet toxic?</p>
     <p align="center">{% from "_formhelpers.html" import render_field %}</p>
     <form action="/results" class=form method=post>
         <dl>{{ render_field(form.tweet_classify) }}</dl>
         <div>
-            <input align="center" class=tweet name='submit_btn' type=submit
+            <input align="center" class=submit name='submit_btn' type=submit
                    value='Submit tweet'>
         </div>
     </form>
