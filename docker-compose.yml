@@ -40,6 +40,7 @@ services:
     container_name: mlflow_nginx
     ports:
       - "80:80"
+      - "81:81"
     networks:
       - frontend
     depends_on:
