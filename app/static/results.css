@@ -1,71 +1,57 @@
 .body {
     background-color: #F3EBF6;
-    font-family: 'Ubuntu', sans-serif;
 }
 
 .result_main {
-    background-color: #FFFFFF;
-    width: 400px;
-    height: 400px;
-    margin: 7em auto;
+    background: rgba(136, 126, 126, 0.04);
     border-radius: 1.5em;
-    box-shadow: 0px 11px 35px 2px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 11px 35px 2px rgba(0, 0, 0, 0.14);
+    height: auto;
+    margin: auto;
+    padding: 5% 10%;
+    text-align: center;
+    width: content-box;
 }
 
 .result_title {
-    padding-top: 40px;
     color: #1D9BF0;
-    font-family: 'Ubuntu', sans-serif;
+    font-size: xx-large;
     font-weight: bold;
-    font-size: 24px;
+    margin: auto;
+    padding: inherit;
+    text-align: match-parent;
 }
 
 .result_tweet {
-    padding-top: 40px;
-    padding-bottom: 10px;
-    font-family: 'Ubuntu', sans-serif;
-    font-size: 14px;
+    font-size: large;
+    padding: inherit;
+    text-align: match-parent;
 }
 
 .result_pred {
-    padding-top: 40px;
-    padding-bottom: 10px;
-    font-family: 'Ubuntu', sans-serif;
-    font-weight: bold;
-    font-size: 14px;
+    font-size: large;
+    padding: inherit;
+    text-align: match-parent;
 }
 
-.prob {
-    padding-top: 40px;
-    padding-bottom: 10px;
-    font-family: 'Ubuntu', sans-serif;
-    font-size: 14px;
+.result_prob {
+    font-size: large;
+    padding: inherit;
+    text-align: match-parent;
 }
 
-.result_tweet:focus{
+.result_tweet:focus {
     border: 2px solid rgba(0, 0, 0, 0.18) !important;
 }
 
 a {
-  cursor: pointer;
+    background:  #1D9BF0;
+    border: #FFFFFF 2px;
     border-radius: 5em;
-    color: #fff;
-    background: linear-gradient(to right, #1D9BF0, #1D9BB0);
-    border: 0;
-    padding-bottom: 10px;
-    padding-top: 10px;
-    font-family: 'Ubuntu', sans-serif;
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-bottom: 10px;
-    padding-top: 10px;
-    font-family: 'Ubuntu', sans-serif;
-    margin-left: 35%;
-    font-size: 13px;
-    box-shadow: 0 0 20px 1px rgba(0, 0, 0, 0.04);
+    color: #FFFFFF;
+    cursor: pointer;
+    font-size: large;
+    padding: 5% 10%;
+    text-align: match-parent;
 }
 
-@media (max-width: 600px) {
-    .main {
-        border-radius: 0px;
-    }

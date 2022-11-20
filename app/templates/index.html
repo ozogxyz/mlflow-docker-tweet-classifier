@@ -1,20 +1,18 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href='/static/main.css'>
+    <link href="/static/main.css" rel="stylesheet">
     <title>Twitter Detoxifier</title>
-    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link href="/static/favicon.ico" rel="shortcut icon">
 </head>
 <body>
 <div class="main">
-    <p align="center" class="title">Is your tweet toxic?</p>
-    <p align="center" class="text">{% from "_formhelpers.html" import render_field %}</p>
+    <p class="title">Is your tweet toxic?</p>
+    <p class="text">{% from "_formhelpers.html" import render_field %}</p>
     <form action="/results" class=form method=post>
         <dl class="tweet">{{ render_field(form.tweet_classify) }}</dl>
-        <div>
-            <input align="center" class=submit name='submit_btn' type=submit
-                   value='Submit tweet' placeholder="Your tweet here">
-        </div>
+        <input class=submit name='submit_btn' placeholder="Your tweet here"
+                   type=submit value='Submit tweet'>
     </form>
 </div>
 </body>
