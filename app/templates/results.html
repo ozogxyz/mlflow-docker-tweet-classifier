@@ -1,17 +1,18 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Tweet Toxic or Not</title>
-	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  </head>
-  <body>
-
-<h3>Your Tweet was:</h3>
-<div>{{ content }}</div>
-
-<h3>Prediction:</h3>
-<div>This tweet is <strong>{{ prediction }}</strong>
-	 (probability: {{ probability }}%).</div>
-
-  </body>
+<head>
+    <link href="/static/results.css" rel="stylesheet">
+    <title>Twitter Detoxifier</title>
+</head>
+<body>
+<div class="result_main">
+    <p align="center" class="result_title">Is this tweet toxic?</p>
+    <p align="center" class="result_tweet">{{ content }}</p>
+    <p align="center" class="result">
+        This tweet is <strong>{{ prediction }}</strong>(probability: {{ probability }}%).
+    </p>
+    <input align="center" class=back_btn name='submit_btn' type=submit
+                   value='Back'><input>
+</div>
+</body>
 </html>

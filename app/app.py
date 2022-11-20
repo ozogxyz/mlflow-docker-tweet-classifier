@@ -4,13 +4,13 @@ import numpy as np
 import warnings
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score
-from flask import Flask, render_template, render_template_string, request
+from flask import Flask, current_app, render_template, render_template_string, request
 from wtforms import Form, TextAreaField, validators
 from sklearn.model_selection import GridSearchCV
 from _preprocess import *
 from _loaders import *
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # load the model
 final_model = pickle.load(open('best_pipe.pkl', 'rb'))
@@ -32,7 +32,8 @@ class ReviewForm(Form):
 @app.route('/')
 def index():
     form = ReviewForm(request.form)
-    return render_template('classify_form.html', form=form)
+    return render_template_string("{% extends 'index.html' %}",
+                                  form=form)
 
 
 @app.route('/results', methods=['POST'])
@@ -41,11 +42,11 @@ def results():
     if request.method == 'POST' and form.validate():
         review = request.form['tweet_classify']
         y, proba = classify(review)
-        return render_template('results.html',
+        return render_template_string("{% extends 'results.html' %}",
                                content=review,
                                prediction=y,
                                probability=round(proba * 100, 2))
-    return render_template('classify_form.html', form=form)
+    return render_template_string("{% extends 'index.html' %}", form=form)
 
 
 if __name__ == '__main__':
