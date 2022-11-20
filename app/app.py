@@ -18,7 +18,7 @@ transformer = pickle.load(open('tfidf.pkl', 'rb'))
 
 
 def classify(tweet):
-    label = {0: 'Nope, seems fine!', 1: 'Toxic!'}
+    label = {0: 'Seems fine!', 1: 'Toxic!'}
     X = transformer.transform([preprocessor(t) for t in [tweet]])
     y = final_model.predict(X)[0]
     proba = np.max(final_model.predict_proba(X))
